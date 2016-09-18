@@ -44,18 +44,29 @@ function httpGetRequest(payload, reply) {
   		// Return the link for the top suggested recipe.
       if (data.length > 0) {
         let recipe_link_url = url + "/recipes/" + data[0].id + "/information"
+        let title_text = data[0].title
+        let image_url_text = data[0].image
         console.log("recipe_link_url: " + recipe_link_url)
         unirest.get(recipe_link_url)
           .header("X-Mashape-Key", mashape_key)
           .header("Accept", accept)
           .end(function(result) {
             console.log("Second get request returned: " + JSON.stringify(result))
-            text = result.body.sourceUrl
+            let item_url_text = result.body.sourceUrl
             console.log("text: " + text)
+            // let attachment = {
+            //     "type":"image",
+            //     "payload":{
+            //       "url":"https://petersapparel.com/img/shirt.png"
+            //     }
+            // }
+
+            result = { attachment: {type: 'template', payload: {template_type: 'generic', elements: [{title: title_text, item_url: item_url_text, image_url: image_url_text}]}}}
+            console.log('result: ' + JSON.stringify(result));
 
             bot.getProfile(payload.sender.id, (err, profile) => {
               if (err) throw err
-              reply({ text }, (err) => {
+              reply(result, (err) => {
                 if (err) throw err
                 console.log(`Echoed back to ${profile.first_name} ${profile.last_name}: ${text}`)
               })
@@ -64,7 +75,7 @@ function httpGetRequest(payload, reply) {
       } else {
         bot.getProfile(payload.sender.id, (err, profile) => {
           if (err) throw err
-          text = "Oh no, no matching recipes!"
+          text = "Oh meow, no matching recipes!"
           reply({ text }, (err) => {
             if (err) throw err
             console.log(`Echoed back to ${profile.first_name} ${profile.last_name}: ${text}`)
