@@ -13,22 +13,6 @@ let bot = new Bot({
 })
 console.log("Created bot")
 
-function getRecipeSrc(id) {
-	jsonObj = JSON.parse(rawData.content)
-	return jsonObj.sourceUrl
-}
-
-function buildSearchRecipeUrl(base, include) {
-		var result = base + "ingredients="
-		var ingredients = include[0]
-		for(var i = 1; i < include.length; i++) {
-			ingredients += "," + include[i]
-		}
-		result += encodeURIComponent(ingredients)
-		result += "&limitLicense=false&number=1&ranking=1"
-		return result
-}
-
 function httpGetRequest(payload, reply) {
   unirest.get(url + "/recipes/queries/analyze?q=" + payload.message.text)
   .header("X-Mashape-Key", mashape_key)
@@ -58,26 +42,35 @@ function httpGetRequest(payload, reply) {
   		let text = JSON.stringify(data)
 
   		// Return the link for the top suggested recipe.
-  		let recipe_link_url = url + "/recipes/" + data[0].id + "/information"
-  		console.log("recipe_link_url: " + recipe_link_url)
-  		unirest.get(recipe_link_url)
-  			.header("X-Mashape-Key", mashape_key)
-  			.header("Accept", accept)
-  			.end(function(result) {
-  				console.log("Second get request returned: " + JSON.stringify(result))
-  				text = result.body.sourceUrl
-  				console.log("text: " + text)
+      if (data.length > 0) {
+        let recipe_link_url = url + "/recipes/" + data[0].id + "/information"
+        console.log("recipe_link_url: " + recipe_link_url)
+        unirest.get(recipe_link_url)
+          .header("X-Mashape-Key", mashape_key)
+          .header("Accept", accept)
+          .end(function(result) {
+            console.log("Second get request returned: " + JSON.stringify(result))
+            text = result.body.sourceUrl
+            console.log("text: " + text)
 
-  				bot.getProfile(payload.sender.id, (err, profile) => {
-  					if (err) throw err
-
-  					reply({ text }, (err) => {
+            bot.getProfile(payload.sender.id, (err, profile) => {
               if (err) throw err
-
-  						console.log(`Echoed back to ${profile.first_name} ${profile.last_name}: ${text}`)
-  					})
-  				})
-  			})
+              reply({ text }, (err) => {
+                if (err) throw err
+                console.log(`Echoed back to ${profile.first_name} ${profile.last_name}: ${text}`)
+              })
+            })
+          })
+      } else {
+        bot.getProfile(payload.sender.id, (err, profile) => {
+          if (err) throw err
+          text = "Oh no, no matching recipes!"
+          reply({ text }, (err) => {
+            if (err) throw err
+            console.log(`Echoed back to ${profile.first_name} ${profile.last_name}: ${text}`)
+          })
+        })
+      }
   	})
   })
 }
