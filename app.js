@@ -1,61 +1,80 @@
 'use strict'
 const http = require('http')
 const Bot = require('messenger-bot')
-const url = "https://spoonacular-recipe-food-nutrition-v1.p.mashape.com/recipes/"
+const unirest = require('unirest')
+const url = "https://spoonacular-recipe-food-nutrition-v1.p.mashape.com"
+const mashape_key = "3Du1rvTxpWmshZlzeFXQHI0m1Rbxp170fiNjsnyMFTg9IMY6s1"
+const accept = "application/json"
+
+console.log("Before created bot")
+let bot = new Bot({
+  token: 'EAAZA9syQJ28cBAFd6gOwgIZCZB2NHtZBW9uv3ZBFY3vuXDnOXuYd6ylRV5OHQRsDnl5DumfSzh9Dxr30nXMfzFVLvBBTZC9RDJoRBYqjGGVaeI0awehZCL2p2plj1bd34esmqJFsisISlBenqi82ZCnAU4MLtZATq8TGEpC5Pe5ylcwZDZD',
+  verify: 'sous_chef_is_the_password'
+})
+console.log("Created bot")
 
 function getRecipeSrc(id) {
-	rawData = httpGetRequest(url + id + "/information")
 	jsonObj = JSON.parse(rawData.content)
 	return jsonObj.sourceUrl
 }
 
 function buildSearchRecipeUrl(base, include) {
-		var result = base
-		var ingredients = "ingredients=" + include[0]
-		for(i = 1; i < include.length; i++) {
-			result += "," + include[i]
+		var result = base + "ingredients="
+		var ingredients = include[0]
+		for(var i = 1; i < include.length; i++) {
+			ingredients += "," + include[i]
 		}
 		result += encodeURIComponent(ingredients)
 		result += "&limitLicense=false&number=1&ranking=1"
 		return result
 }
 
-function httpGetRequest(theUrl) {
-		var result = HTTP.call('GET', theUrl, {headers: { "X-Mashape-Key": "3Du1rvTxpWmshZlzeFXQHI0m1Rbxp170fiNjsnyMFTg9IMY6s1" }});
-		return result
+function httpGetRequest(payload, reply) {
+	// TODO: payload.message.text -> Use to form GET request.
+	// Find the recipes that match with the search request.
+	unirest.get(url + "/recipes/findByIngredients?fillIngredients=false&ingredients=apples%2Csugar&limitLicense=false&number=1&ranking=1")
+	.header("X-Mashape-Key", mashape_key)
+	.header("Accept", accept)
+	.end(function(result) {
+	  console.log(result.status, result.headers, result.body)
+		let data = result.body
+		let text = JSON.stringify(data)
+
+		// Return the link for the top suggested recipe.
+		let recipe_link_url = url + "/recipes/" + data[0].id + "/information"
+		console.log("recipe_link_url: " + recipe_link_url)
+		unirest.get(recipe_link_url)
+			.header("X-Mashape-Key", mashape_key)
+			.header("Accept", accept)
+			.end(function(result) {
+				console.log("Second get request returned: " + JSON.stringify(result))
+				text = result.body.sourceUrl
+				console.log("text: " + text)
+
+				bot.getProfile(payload.sender.id, (err, profile) => {
+					if (err) throw err
+
+					reply({ text }, (err) => {
+            if (err) throw err
+
+						console.log(`Echoed back to ${profile.first_name} ${profile.last_name}: ${text}`)
+					})
+				})
+			})
+	})
 }
 
 function processRecipeJSON(o) {
-	var obj = JSON.parse(o.content);
-	return getRecipeSrc(obj[0].id);
+	return getRecipeSrc(o[0].id)
 }
-
-let bot = new Bot({
-  token: 'EAAZA9syQJ28cBAKUVnOXX9RkQT5OA56ut0kjiyAgL46ZBEEyiu7iFYZCHFwguw2WH7CO4ttwMcUJQzDIVDJ3grNKbmPaMKW9L0ZBFTDGHvnH2Cr76voyqt5ZCHI3SnFiqZAeoQFGqX5CduNZAwuIdeTueZAiRwpcTcuYc6fslPlIjwZDZD',
-  verify: 'sous_chef_is_the_password'
-})
 
 bot.on('error', (err) => {
   console.log(err.message)
 })
 
 bot.on('message', (payload, reply) => {
-	data = httpGetRequest(buildSearchRecipeUrl(url + "findByIngredients?fillIngredients=false&", ["apple", "sugar"]))
-	recipeSrcUrl = processRecipeJSON(data)
-
-  let text = recipeSrcUrl
-
-  bot.getProfile(payload.sender.id, (err, profile) => {
-    if (err) throw err
-
-    reply({ text }, (err) => {
-      if (err) throw err
-
-      console.log(`Echoed back to ${profile.first_name} ${profile.last_name}: ${text}`)
-    })
-  })
-
-
+	console.log("recieved message")
+	httpGetRequest(payload, reply)
 })
 
 http.createServer(bot.middleware()).listen(3000)
