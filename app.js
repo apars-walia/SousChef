@@ -55,7 +55,7 @@ function httpGetRequest(payload, reply) {
 
   		// Return the link for the top suggested recipe.
       if (data.length > 0) {
-		let num = Math.floor(Math.random() * data.length) + 1
+		let num = Math.floor(Math.random() * data.length)
         let recipe_link_url = url + "/recipes/" + data[num].id + "/information"
         let title_text = data[num].title
         let image_url_text = data[num].image
@@ -73,8 +73,15 @@ function httpGetRequest(payload, reply) {
             //       "url":"https://petersapparel.com/img/shirt.png"
             //     }
             // }
+			let sub = ""
+			if(Math.random() < .5) {
+				sub = "Nyou should eat this! *bounces*"
+			}
+			else {
+				sub = "This is purrfect for nyou!"
+			}
 
-            result = { attachment: {type: 'template', payload: {template_type: 'generic', elements: [{title: title_text, item_url: item_url_text, image_url: image_url_text}]}}}
+            result = { attachment: {type: 'template', payload: {template_type: 'generic', elements: [{title: title_text, item_url: item_url_text, image_url: image_url_text, subtitle: sub}]}}}
             console.log('result: ' + JSON.stringify(result));
 
             bot.getProfile(payload.sender.id, (err, profile) => {
@@ -108,7 +115,7 @@ bot.on('message', (payload, reply) => {
 	console.log("\npayload: " + JSON.stringify(payload) + "\n")
 	if(payload.message.sticker_id != undefined && sticker_ids.indexOf(payload.message.sticker_id)) {
 		let item_url_text = "http://cats.lovetoknow.com/Homemade_Cat_Food_Recipe#X36qdEK219MrukJ4.97"
-		let result = { attachment: {type: 'template', payload: {template_type: 'generic', elements: [{title: "Gourmet Cat Food", item_url: item_url_text, image_url: "http://cf.ltkcdn.net/cats/images/std/193372-400x267-mackerel_final_final.jpg"}]}}}
+		let result = { attachment: {type: 'template', payload: {template_type: 'generic', elements: [{title: "Gourmet Kitty Food", item_url: item_url_text, image_url: "http://cf.ltkcdn.net/cats/images/std/193372-400x267-mackerel_final_final.jpg", subtitle: "Makes nyour fur purrfect~"}]}}}
 		reply( result , (err) => {
 			if (err) throw err
             //console.log(`Echoed back to ${profile.first_name} ${profile.last_name}: ${result}`)
