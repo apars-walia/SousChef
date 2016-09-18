@@ -30,42 +30,56 @@ function buildSearchRecipeUrl(base, include) {
 }
 
 function httpGetRequest(payload, reply) {
-	// TODO: payload.message.text -> Use to form GET request.
-	// Find the recipes that match with the search request.
-	unirest.get(url + "/recipes/findByIngredients?fillIngredients=false&ingredients=apples%2Csugar&limitLicense=false&number=1&ranking=1")
-	.header("X-Mashape-Key", mashape_key)
-	.header("Accept", accept)
-	.end(function(result) {
-	  console.log(result.status, result.headers, result.body)
-		let data = result.body
-		let text = JSON.stringify(data)
+  unirest.get(url + "/recipes/queries/analyze?q=" + payload.message.text)
+  .header("X-Mashape-Key", mashape_key)
+  .header("Accept", accept)
+  .end(function(result) {
+    console.log(result.status, result.headers, result.body)
+    let data = result.body
+    let ingredients_array = data["ingredients"]
+    let ingredients_list = ""
+    for (var i = 0; i < ingredients_array.length; i++) {
+      if (ingredients_array[i].include) {
+        ingredients_list += ingredients_array[i].name + " "
+      }
+    }
+    ingredients_list =
+      encodeURIComponent(
+        ingredients_list.trim().replace(/&nbsp;/g, ','));
+    console.log("ingredients_list: " + ingredients_list);
 
-		// Return the link for the top suggested recipe.
-		let recipe_link_url = url + "/recipes/" + data[0].id + "/information"
-		console.log("recipe_link_url: " + recipe_link_url)
-		unirest.get(recipe_link_url)
-			.header("X-Mashape-Key", mashape_key)
-			.header("Accept", accept)
-			.end(function(result) {
-				console.log("Second get request returned: " + JSON.stringify(result))
-				text = result.body.sourceUrl
-				console.log("text: " + text)
+  	// Find the recipes that match with the search request.
+  	unirest.get(url + "/recipes/findByIngredients?fillIngredients=false&ingredients=" + ingredients_list + "&limitLicense=false&number=1&ranking=1")
+  	.header("X-Mashape-Key", mashape_key)
+  	.header("Accept", accept)
+  	.end(function(result) {
+  	  console.log(result.status, result.headers, result.body)
+  		data = result.body
+  		let text = JSON.stringify(data)
 
-				bot.getProfile(payload.sender.id, (err, profile) => {
-					if (err) throw err
+  		// Return the link for the top suggested recipe.
+  		let recipe_link_url = url + "/recipes/" + data[0].id + "/information"
+  		console.log("recipe_link_url: " + recipe_link_url)
+  		unirest.get(recipe_link_url)
+  			.header("X-Mashape-Key", mashape_key)
+  			.header("Accept", accept)
+  			.end(function(result) {
+  				console.log("Second get request returned: " + JSON.stringify(result))
+  				text = result.body.sourceUrl
+  				console.log("text: " + text)
 
-					reply({ text }, (err) => {
-            if (err) throw err
+  				bot.getProfile(payload.sender.id, (err, profile) => {
+  					if (err) throw err
 
-						console.log(`Echoed back to ${profile.first_name} ${profile.last_name}: ${text}`)
-					})
-				})
-			})
-	})
-}
+  					reply({ text }, (err) => {
+              if (err) throw err
 
-function processRecipeJSON(o) {
-	return getRecipeSrc(o[0].id)
+  						console.log(`Echoed back to ${profile.first_name} ${profile.last_name}: ${text}`)
+  					})
+  				})
+  			})
+  	})
+  })
 }
 
 bot.on('error', (err) => {
